@@ -1,0 +1,318 @@
+services:
+
+  broker:
+    image: confluentinc/cp-server:7.9.0
+    hostname: broker
+    container_name: broker
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      KAFKA_METRIC_REPORTERS: io.confluent.metrics.reporter.ConfluentMetricsReporter
+      CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: broker:29092
+      CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      CONFLUENT_METRICS_ENABLE: 'true'
+      CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+    networks:
+      - my-app-network
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.9.0
+    hostname: schema-registry
+    container_name: schema-registry
+    depends_on:
+      - broker
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'broker:29092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    networks:
+      - my-app-network
+
+  connect:
+    image: cnfldemos/cp-server-connect-datagen:0.6.4-7.6.0
+    hostname: connect
+    container_name: connect
+    depends_on:
+      - broker
+      - schema-registry
+    ports:
+      - "8083:8083"
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: 'broker:29092'
+      CONNECT_REST_ADVERTISED_HOST_NAME: connect
+      CONNECT_GROUP_ID: compose-connect-group
+      CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
+      CONNECT_OFFSET_STORAGE_TOPIC: docker-connect-offsets
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_TOPIC: docker-connect-status
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CLASSPATH: /usr/share/java/monitoring-interceptors/monitoring-interceptors-7.9.0.jar
+      CONNECT_PRODUCER_INTERCEPTOR_CLASSES: "io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor"
+      CONNECT_CONSUMER_INTERCEPTOR_CLASSES: "io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor"
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components,/debezium-plugins"
+    volumes:
+      - ./lib/kafka/connect-plugins:/debezium-plugins
+    networks:
+      - my-app-network
+
+  control-center:
+    image: confluentinc/cp-enterprise-control-center:7.9.0
+    hostname: control-center
+    container_name: control-center
+    depends_on:
+      - broker
+      - schema-registry
+      - connect
+    ports:
+      - "9021:9021"
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: 'broker:29092'
+      CONTROL_CENTER_CONNECT_CONNECT-DEFAULT_CLUSTER: 'connect:8083'
+      CONTROL_CENTER_CONNECT_HEALTHCHECK_ENDPOINT: '/connectors'
+      CONTROL_CENTER_KSQL_KSQLDB1_ADVERTISED_URL: "http://localhost:8088"
+      CONTROL_CENTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
+      CONTROL_CENTER_REPLICATION_FACTOR: 1
+      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
+      CONFLUENT_METRICS_TOPIC_REPLICATION: 1
+      PORT: 9021
+    networks:
+      - my-app-network
+
+  flink-sql-client:
+    image: cnfldemos/flink-sql-client-kafka:1.19.1-scala_2.12-java17
+    depends_on:
+      - flink-jobmanager
+    hostname: flink-sql-client
+    container_name: flink-sql-client
+    environment:
+      FLINK_JOBMANAGER_HOST: flink-jobmanager
+    volumes:
+      - ./lib/flink/common:/opt/flink/lib/custom-common
+      - ./lib/flink/hive-exec-3.1.2.jar:/opt/flink/lib/hive-exec-3.1.2.jar
+    networks:
+      - my-app-network
+      
+  flink-jobmanager:
+    image: cnfldemos/flink-kafka:1.19.1-scala_2.12-java17
+    hostname: flink-jobmanager
+    container_name: flink-jobmanager
+    ports:
+    - 9081:9081
+    command: jobmanager
+    environment:
+    - |
+      FLINK_PROPERTIES=
+      jobmanager.rpc.address: flink-jobmanager
+      rest.bind-port: 9081
+    volumes:
+      - ./lib/flink/common:/opt/flink/lib/custom-common
+      - ./lib/flink/parquet-hadoop-bundle-1.13.1.jar:/opt/flink/lib/parquet-hadoop-bundle-1.13.1.jar
+      - ./lib/flink/orc-core-1.9.0.jar:/opt/flink/lib/orc-core-1.9.0.jar
+    networks:
+      - my-app-network
+
+  flink-taskmanager:
+    image: cnfldemos/flink-kafka:1.19.1-scala_2.12-java17
+    hostname: flink-taskmanager
+    container_name: flink-taskmanager
+    depends_on:
+    - flink-jobmanager
+    command: taskmanager
+    scale: 1
+    environment:
+    - |
+      FLINK_PROPERTIES=
+      jobmanager.rpc.address: flink-jobmanager
+      taskmanager.numberOfTaskSlots: 10
+    volumes:
+      - ./lib/flink/common:/opt/flink/lib/custom-common
+      - ./lib/flink/parquet-hadoop-bundle-1.13.1.jar:/opt/flink/lib/parquet-hadoop-bundle-1.13.1.jar
+      - ./lib/flink/orc-core-1.9.0.jar:/opt/flink/lib/orc-core-1.9.0.jar
+    networks:
+      - my-app-network
+
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    environment:
+      - CLUSTER_NAME=test
+    ports:
+      - 9870:9870  
+      - 9000:9000
+    volumes:
+      - ./volumes/hdfs-namenode:/hadoop/dfs/name
+    env_file:
+      - ./config/hdfs/hadoop.env
+    networks:
+      - my-app-network
+      
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+    ports:
+      - "9864:9864"
+    volumes:
+      - ./volumes/hdfs-datanode:/hadoop/dfs/data
+    depends_on:
+      - namenode
+    env_file:
+      - ./config/hdfs/hadoop.env
+    networks:
+      - my-app-network
+  
+  postgres:
+    image: debezium/postgres:16-alpine
+    container_name: postgres
+    ports:
+      - 5433:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - ./volumes/postgresql:/var/lib/postgresql/data
+    networks:
+      - my-app-network
+
+  hive-metastore-db:
+    image: mysql:5.7
+    container_name: hive-metastore-db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: metastore_db
+      MYSQL_USER: hiveuser
+      MYSQL_PASSWORD: hivepassword
+    volumes:
+      - ./volumes/mysql:/var/lib/mysql
+    networks:
+      - my-app-network
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD-SHELL", 'mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD']
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  hive-metastore-init:
+    image: apache/hive:3.1.3
+    # platform: linux/amd64
+    depends_on:
+      hive-metastore-db:
+        condition: service_healthy
+    environment:
+      DB_DRIVER: mysql
+      METASTORE_DB_TYPE: mysql
+    volumes:
+      - ./config/hive-metastore/hive-site.xml:/opt/hive/conf/hive-site.xml
+      - ./lib/jdbc/mysql-connector-j-8.0.31.jar:/opt/hive/lib/mysql-connector-j-8.0.31.jar
+    entrypoint: ""  
+    command: bash -c "while ! /opt/hive/bin/schematool -dbType mysql -info; do /opt/hive/bin/schematool -initSchema -dbType mysql; sleep 5; done"
+    networks:
+      - my-app-network
+    restart: on-failure
+
+  hive-metastore:
+    image: apache/hive:3.1.3
+    container_name: hive-metastore
+    mem_limit: 2g
+    # platform: linux/arm64
+    depends_on:
+      hive-metastore-init:
+        condition: service_completed_successfully
+    ports:
+      - "9083:9083"
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: mysql 
+      METASTORE_DB_TYPE: mysql
+      IS_RESUME: "true"
+    networks:
+      - my-app-network
+    volumes:
+      - ./config/hive-metastore/hive-site.xml:/opt/hive/conf/hive-site.xml
+      - ./lib/jdbc/mysql-connector-j-8.0.31.jar:/opt/hive/lib/mysql-connector-j-8.0.31.jar
+
+  trino-coordinator:
+    image: trinodb/trino:435
+    container_name: trino-coordinator
+    ports:
+      - "8080:8080"
+    depends_on:
+      - hive-metastore
+      - namenode
+    environment:
+      - TRINO_JVM_MAX_HEAP_SIZE=4G
+      - TRINO_CONFIG=/etc/trino/config.properties
+      - TRINO_NODE_PROPERTIES=/etc/trino/node.properties
+    volumes:
+      - ./config/trino/coordinator/config.properties:/etc/trino/config.properties
+      - ./config/trino/coordinator/node.properties:/etc/trino/node.properties
+      - ./config/trino/catalog/iceberg.properties:/etc/trino/catalog/iceberg.properties
+    networks:
+      - my-app-network
+
+  trino-worker:
+    image: trinodb/trino:435
+    container_name: trino-worker
+    depends_on:
+      - trino-coordinator
+      - hive-metastore
+    environment:
+      - TRINO_JVM_MAX_HEAP_SIZE=4G
+      - TRINO_CONFIG=/etc/trino/config.properties
+      - TRINO_NODE_PROPERTIES=/etc/trino/node.properties
+      - TRINO_DISCOVERY_SERVER=trino-coordinator:8080
+    volumes:
+      - ./config/trino/worker/config.properties:/etc/trino/config.properties
+      - ./config/trino/worker/node.properties:/etc/trino/node.properties
+    networks:
+      - my-app-network
+
+  metabase:
+    image: metabase/metabase:v0.54.6.2
+    container_name: metabase
+    ports:
+      - "3000:3000"
+    environment:
+      MB_DB_FILE: /metabase-data/metabase.db
+    volumes:
+      - ./volumes/metabase:/metabase-data
+    restart: unless-stopped
+    networks:
+      - my-app-network
+
+networks:
+  my-app-network:
+    name: my-app-network 
