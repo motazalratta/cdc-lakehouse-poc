@@ -65,17 +65,17 @@ The following web UIs are available for monitoring and interacting with the proj
 
 Follow these steps to set up and run the PoC:
 
-1.  **Start Docker Compose:**
+### Step #1  **Start Docker Compose:**
     
 bash
     docker compose up -d
 
 
-2.  **Create PostgreSQL Tables:**
+### Step #2  **Create PostgreSQL Tables:**
     Connect to the PostgreSQL database using any client and execute the following SQL commands under the default postgres database and public schema:
 
-    
-sql
+
+```sql
     CREATE TABLE orders (
         order_id SERIAL PRIMARY KEY,
         customer_id INTEGER NOT NULL,
@@ -121,23 +121,24 @@ sql
 
     ALTER TABLE orders REPLICA IDENTITY FULL;
     ALTER TABLE customers REPLICA IDENTITY FULL;
+```
 
-
-3.  **Create Kafka Connection (Debezium Connector):**
+### Step #3  **Create Kafka Connection (Debezium Connector):**
     * Open the Kafka Connect UI: [http://localhost:9021/clusters/MkU3OEVBNTcwNTJENDM2Qk/management/connect/connect-default/connectors](http://localhost:9021/clusters/MkU3OEVBNTcwNTJENDM2Qk/management/connect/connect-default/connectors)
     * Click on "Add new connector".
-    * Select the file located at config/kafka/debezium_postgres.json to configure the PostgreSQL Debezium connector.
+    * Select the file located at `config/kafka/debezium_postgres.json` to configure the PostgreSQL Debezium connector.
     * **Verification:** Open the Kafka Topics UI. You should see two new topics: debezium.public.customers and debezium.public.orders.
 
-4.  **Create Flink Tables and Transformations:**
-    1.  Connect to the Flink SQL client:
+### Step #4  **Create Flink Tables and Transformations:**
+1.  Connect to the Flink SQL client:
         
-bash
-        docker compose exec -it flink-sql-client bash -c "sql-client.sh"
 
-    2.  Create the raw stream tables for the orders and customers Kafka topics:
+        ```docker compose exec -it flink-sql-client bash -c "sql-client.sh"```
+
+
+2.  Create the raw stream tables for the orders and customers Kafka topics:
         
-sql
+```sql
         CREATE TABLE OrdersRaw (
             order_id BIGINT,
             customer_id INTEGER,
@@ -179,16 +180,20 @@ sql
             'value.debezium-json.ignore-parse-errors' = 'true',
             'value.debezium-json.timestamp-format.standard' = 'ISO-8601'
         );
+```
 
-    3.  **Verification:** Execute the following queries in the Flink SQL client to verify data ingestion from Kafka:
-        
-sql
-        SELECT * FROM OrdersRaw;
-        SELECT * FROM CustomersRaw;
 
-    4.  Create the Hive catalog and database for Iceberg:
+3.  **Verification:** Execute the following queries in the Flink SQL client to verify data ingestion from Kafka:
         
-sql
+
+``` sql
+SELECT * FROM OrdersRaw;
+SELECT * FROM CustomersRaw;
+```
+
+4.  Create the Hive catalog and database for Iceberg:
+        
+```sql
         CREATE CATALOG hive_catalog WITH (
           'type'='iceberg',
           'catalog-type'='hive',
@@ -200,10 +205,11 @@ sql
         USE CATALOG hive_catalog;
         CREATE DATABASE iceberg_db;
         USE iceberg_db;
+```
 
-    5.  Create the Iceberg tables:
+5.  Create the Iceberg tables:
         
-sql
+```sql
         CREATE TABLE OrdersIceberg
         (
             order_id BIGINT,
@@ -243,20 +249,26 @@ sql
             'format-version' = '2',
             'write.upsert.enabled' = 'true'
         );
+```
 
-    6.  **Verification:** Open the HDFS UI ([http://localhost:9870/explorer.html#/warehouse/iceberg_db.db](http://localhost:9870/explorer.html#/warehouse/iceberg_db.db)) to see the metadata files for the iceberg_db.
+6.  **Verification:** Open the HDFS UI ([http://localhost:9870/explorer.html#/warehouse/iceberg_db.db](http://localhost:9870/explorer.html#/warehouse/iceberg_db.db)) to see the metadata files for the iceberg_db.
     7.  Apply some Flink configurations:
         
-sql
+```sql
         SET 'execution.checkpointing.interval' = '10s';
         SET 'table.exec.sink.upsert-materialize' = 'auto';
         SET 'table.exec.iceberg.emit.snapshot-empty' = 'false';
+```
 
-    8.  Run Flink jobs to populate the Iceberg tables from the Kafka streams:
+7.  Run Flink jobs to populate the Iceberg tables from the Kafka streams:
         
-sql
-        INSERT INTO hive_catalog.iceberg_db.OrdersIceberg SELECT * FROM default_catalog.default_database.OrdersRaw;
-        INSERT INTO hive_catalog.iceberg_db.CustomersIceberg SELECT * FROM default_catalog.default_database.CustomersRaw;
+```sql
+        INSERT INTO hive_catalog.iceberg_db.OrdersIceberg 
+        SELECT * FROM default_catalog.default_database.OrdersRaw;
+
+        INSERT INTO hive_catalog.iceberg_db.CustomersIceberg 
+        SELECT * FROM default_catalog.default_database.CustomersRaw;
+
         INSERT INTO hive_catalog.iceberg_db.EnrichedOrdersIceberg
         SELECT
             o.order_id,
@@ -268,35 +280,35 @@ sql
             c.last_name
         FROM default_catalog.default_database.OrdersRaw o
         JOIN default_catalog.default_database.CustomersRaw c ON o.customer_id = c.customer_id;
+```
 
-    9.  **Verification:** Query the new Iceberg tables in the Flink SQL client and open the Flink UI ([http://localhost:9081/](http://localhost:9081/)) to see the running Flink jobs.
+8.  **Verification:** Query the new Iceberg tables in the Flink SQL client and open the Flink UI ([http://localhost:9081/](http://localhost:9081/)) to see the running Flink jobs.
 
-5.  **Try Trino:**
-    Use your favorite JDBC client (e.g., DBeaver) to connect to the Trino coordinator.
+### Step #5  **Try Trino:**
+Use your favorite JDBC client (e.g., DBeaver) to connect to the Trino coordinator.
 
-    * **Connection URL:** jdbc:trino://localhost:8080/iceberg
-    * **Username:** You can use any value for the username.
+* **Connection URL:** jdbc:trino://localhost:8080/iceberg
+* **Username:** You can use any value for the username.
 
-    Execute queries against the Iceberg tables:
+Execute queries against the Iceberg tables:
+```sql
+SELECT * FROM iceberg_db.enrichedordersiceberg;
+```
 
-    
-sql
-    SELECT * FROM iceberg_db.enrichedordersiceberg;
 
+**Verification:** Open the Trino UI ([http://localhost:8080/ui/](http://localhost:8080/ui/)) and navigate to the cluster monitoring section to see the executed queries. You can use any value for the username to access the UI.
 
-    **Verification:** Open the Trino UI ([http://localhost:8080/ui/](http://localhost:8080/ui/)) and navigate to the cluster monitoring section to see the executed queries. You can use any value for the username to access the UI.
-
-6.  **Setup Metabase:**
-    * Open the Metabase UI: [http://localhost:3000/](http://localhost:3000/)
-    * Follow the UI steps to set up your account.
-    * Add a new database connection with the following details for Trino:
-        * **Display name:** Trino
-        * **Hostname:** trino-coordinator
-        * **Port:** 8080
-        * **Catalog:** iceberg
-        * **Schema:** iceberg_db
-        * **Username:** Trino
-    * Explore the data and create visualizations using the connected Trino database. You can then create dashboards to analyze the enriched order data.
+### Step #6  **Setup Metabase:**
+1. Open the Metabase UI: [http://localhost:3000/](http://localhost:3000/)
+2. Follow the UI steps to set up your account.
+3. Add a new database connection with the following details for Trino:
+    * **Display name:** Trino
+    * **Hostname:** trino-coordinator
+    * **Port:** 8080
+    * **Catalog:** iceberg
+    * **Schema:** iceberg_db
+    * **Username:** Trino
+4. Explore the data and create visualizations using the connected Trino database. You can then create dashboards to analyze the enriched order data.
 
     **(Attach screenshot of Metabase dashboard here if available)**
 
