@@ -12,9 +12,24 @@ PostgreSQL DB (as CDC source) -> Debezium -> Kafka -> FlinkSQL -> HDFS (Iceberg)
 
 ![Architecture Diagram](./docs/architecture-diagram.png) 
 
-# 🛠️ Docker Compose Components
 
-The docker-compose.yml file includes the following services:
+### 🛠️ Technologies Used
+
+* **PostgreSQL (v16):** Relational database management system.
+* **Debezium (v2.7.4):** Open-source distributed platform for change data capture.
+* **Apache Kafka (v7.9.0):** Distributed streaming platform.
+* **Apache Flink (v1.19.1):** Stream processing framework with SQL interface.
+* **Apache Hadoop HDFS (v3.2.1):** Distributed file system.
+* **Apache Iceberg (v1.7):** Open table format for massive analytic datasets.
+* **Apache Hive Metastore (v3.1.3):** Metadata repository for Hadoop and other data processing systems.
+* **Trino (v435):** Distributed SQL query engine for big data analytics.
+* **Metabase (v0.54.6.2):** Open-source business intelligence and analytics tool.
+* **Docker Compose:** Tool for defining and managing multi-container Docker applications.
+
+
+# 🧱 Docker Compose Components
+
+The `docker-compose.yml` file includes the following services:
 
 
 ### <img src="./docs/kafka-icon.png" alt="kafka Icon" width="25"/> **Kafka Stack (Confluent)**
@@ -312,15 +327,3 @@ SELECT * FROM iceberg_db.enrichedordersiceberg;
 
 ![metabase screenshot](./docs/metabase-01.png) 
 
-## Technologies Used
-
-* **PostgreSQL (v16):** Relational database management system.
-* **Debezium (v2.7.4):** Open-source distributed platform for change data capture.
-* **Apache Kafka (v7.9.0):** Distributed streaming platform.
-* **Apache Flink (v1.19.1):** Stream processing framework with SQL interface.
-* **Apache Hadoop HDFS (v3.2.1):** Distributed file system.
-* **Apache Iceberg (v1.7):** Open table format for massive analytic datasets.
-* **Apache Hive Metastore (v3.1.3):** Metadata repository for Hadoop and other data processing systems.
-* **Trino (v435):** Distributed SQL query engine for big data analytics.
-* **Metabase (v0.54.6.2):** Open-source business intelligence and analytics tool.
-* **Docker Compose:** Tool for defining and managing multi-container Docker applications.
