@@ -19,13 +19,13 @@ PostgreSQL DB (as CDC source) -> Debezium -> Kafka -> FlinkSQL -> HDFS (Iceberg)
 The docker-compose.yml file includes the following services:
 
 
-### <img src="./docs/kafka-icon.png" alt="Kafka Icon" width="25"/> **Kafka Stack (Confluent)**
+### <img src="./docs/kafka-icon.png" alt="kafka Icon" width="25"/> **Kafka Stack (Confluent)**
 - **broker**: Kafka broker for message streaming.
 - **schema-registry**: Manages Kafka message schemas.
 - **connect**: Kafka Connect with Debezium connector for change data capture (CDC).
 - **control-center**: Kafka UI for monitoring and managing the Kafka ecosystem.
 
-### <img src="./docs/flink-icon.png" alt="Kafka Icon" width="25"/> **Apache Flink**
+### <img src="./docs/flink-icon.png" alt="flink Icon" width="25"/> **Apache Flink**
 - **flink-sql-client**: Command-line interface (CLI) for executing Flink SQL queries.
 - **flink-jobmanager**: Manages the execution of Flink jobs.
 - **flink-taskmanager**: Executes tasks for Flink jobs.
@@ -34,12 +34,12 @@ The docker-compose.yml file includes the following services:
 - **namenode**: The master node of HDFS that manages the file system metadata.
 - **datanode**: Stores the actual data blocks in HDFS.
 
-### 🗃️ **Databases**
+### <img src="./docs/db-icon.png" alt="db Icon" width="25"/>  **Databases**
 - **postgres**: The source PostgreSQL database used for change data capture (CDC).
 - **hive-metastore-db**: MySQL database used by Hive for storing metadata.
 - **hive-metastore**: The Hive metastore service that manages metadata for tables stored in HDFS (Iceberg).
 
-### <img src="./docs/trino-icon.png" alt="Kafka Icon" width="25"/> **Query Engine**
+### <img src="./docs/trino-icon.png" alt="trino Icon" width="25"/> **Query Engine**
 
 - **trino-coordinator**: Coordinates and optimizes Trino SQL queries.
 - **trino-worker**: Executes queries provided by the coordinator in a distributed fashion.
@@ -72,7 +72,7 @@ bash
 
 
 ### Step #2  **Create PostgreSQL Tables:**
-    Connect to the PostgreSQL database using any client and execute the following SQL commands under the default postgres database and public schema:
+ Connect to the PostgreSQL database using any client and execute the following SQL commands under the default postgres database and public schema:
 
 
 ```sql
@@ -127,7 +127,7 @@ ALTER TABLE customers REPLICA IDENTITY FULL;
 1. Open the Kafka Connect UI: [http://localhost:9021/clusters/MkU3OEVBNTcwNTJENDM2Qk/management/connect/connect-default/connectors](http://localhost:9021/clusters/MkU3OEVBNTcwNTJENDM2Qk/management/connect/connect-default/connectors)
 2. Click on "Add new connector".
 3. Select the file located at `config/kafka/debezium_postgres.json` to configure the PostgreSQL Debezium connector.
-* **Verification:** Open the Kafka Topics UI. You should see two new topics: `debezium.public.customers` and `debezium.public.orders`.
+4. **Verification:** Open the Kafka Topics UI. You should see two new topics: `debezium.public.customers` and `debezium.public.orders`.
 
 ### Step #4  **Create Flink Tables and Transformations:**
 1.  Connect to the Flink SQL client:
