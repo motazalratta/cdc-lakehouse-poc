@@ -17,7 +17,7 @@ PostgreSQL DB (as CDC source) -> Debezium -> Kafka -> FlinkSQL -> HDFS (Iceberg)
 
 * **PostgreSQL (v16):** Relational database management system.
 * **Debezium (v2.7.4):** Open-source distributed platform for change data capture.
-* **Apache Kafka (v7.9.0):** Distributed streaming platform.
+* **Apache Kafka (v3.9):** Distributed streaming platform.
 * **Apache Flink (v1.19.1):** Stream processing framework with SQL interface.
 * **Apache Hadoop HDFS (v3.2.1):** Distributed file system.
 * **Apache Iceberg (v1.7):** Open table format for massive analytic datasets.
