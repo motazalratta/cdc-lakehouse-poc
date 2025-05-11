@@ -4,13 +4,11 @@ This project is a Proof of Concept (PoC) demonstrating a data architecture to lo
 
 **Note:** This PoC does **not** include fault tolerance or security best practices. It is intended for learning and experimentation.
 
-## 🧭 Data Flow
 
+## 📌 Architecture Diagram
 The data flow in this architecture is as follows:
 
 PostgreSQL DB (as CDC source) -> Debezium -> Kafka -> FlinkSQL -> HDFS (Iceberg) via Hive Metastore (using MySQL) -> Query via Trino -> BI using Metabase
-
-## 📌 Architecture Diagram
 
 ![Architecture Diagram](./docs/architecture-diagram.png) 
 
