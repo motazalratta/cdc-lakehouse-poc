@@ -67,9 +67,9 @@ Follow these steps to set up and run the PoC:
 
 ### Step #1  **Start Docker Compose:**
     
-bash
+```bash
     docker compose up -d
-
+```
 
 ### Step #2  **Create PostgreSQL Tables:**
  Connect to the PostgreSQL database using any client and execute the following SQL commands under the default postgres database and public schema:
