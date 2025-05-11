@@ -66,7 +66,7 @@ Follow these steps to set up and run the PoC:
 ### Step #1  **Start Docker Compose:**
     
 ```bash
-    docker compose up -d
+docker compose up -d
 ```
 
 ### Step #2  **Create PostgreSQL Tables:**
